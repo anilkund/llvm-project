@@ -5270,7 +5270,7 @@ static unsigned getKnownAlignForUse(Attributor &A, AAAlign &QueryingAA,
       if (ConstVals && ConstVals->isValidState() && ConstVals->isAtFixpoint()) {
         unsigned ShiftValue = std::min(ConstVals->getAssumedMinTrailingZeros(),
                                        Value::MaxAlignmentExponent);
-        Align ConstAlign(UINT64_C(1) << ShiftValue);
+        Align ConstAlign = Align::fromLog2(ShiftValue);
         if (ConstAlign >= AlignAA->getKnownAlign())
           return Align(1).value();
       }
@@ -5601,7 +5601,7 @@ struct AAAlignCallSiteReturned final
           unsigned ShiftValue =
               std::min(ConstVals->getAssumedMinTrailingZeros(),
                        Value::MaxAlignmentExponent);
-          Alignment = Align(UINT64_C(1) << ShiftValue);
+          Alignment = Align::fromLog2(ShiftValue);
           Valid = true;
         }
 
@@ -6934,9 +6934,8 @@ struct AAHeapToStackFunction final : public AAHeapToStack {
       if (SizeAPI) {
         Size = ConstantInt::get(AI.CB->getContext(), *SizeAPI);
       } else {
-        LLVMContext &Ctx = AI.CB->getContext();
         ObjectSizeOpts Opts;
-        ObjectSizeOffsetEvaluator Eval(DL, TLI, Ctx, Opts);
+        ObjectSizeOffsetEvaluator Eval(*AI.CB->getModule(), TLI, Opts);
         SizeOffsetValue SizeOffsetPair = Eval.compute(AI.CB);
         assert(SizeOffsetPair != ObjectSizeOffsetEvaluator::unknown() &&
                cast<ConstantInt>(SizeOffsetPair.Offset)->isZero());
